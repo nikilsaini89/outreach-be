@@ -140,13 +140,26 @@ Cron
 
 # Database Design
 
+All tables share an audit base mapped via `BaseEntity` (`@MappedSuperclass`):
+
+```text
+id          UUID PRIMARY KEY  (GenerationType.UUID)
+created_at  TIMESTAMP NOT NULL  (@CreatedDate)
+updated_at  TIMESTAMP NOT NULL  (@LastModifiedDate)
+```
+
+---
+
 ## users
 
 ```sql
 CREATE TABLE users (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY,
 
-    gmail_email VARCHAR(255) NOT NULL UNIQUE,
+    first_name VARCHAR(255) NOT NULL,
+    last_name  VARCHAR(255) NOT NULL,
+
+    email VARCHAR(255) NOT NULL UNIQUE,
 
     encrypted_refresh_token TEXT NOT NULL,
 
@@ -163,23 +176,17 @@ One campaign represents one email conversation/thread.
 
 ```sql
 CREATE TABLE campaigns (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY,
 
-    user_id BIGINT NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id),
 
     recipient_email VARCHAR(255) NOT NULL,
 
-    subject TEXT NOT NULL,
-
+    subject      TEXT NOT NULL,
     initial_body TEXT NOT NULL,
 
     gmail_thread_id VARCHAR(255) NOT NULL,
-
     root_message_id VARCHAR(255) NOT NULL,
-
-    total_followups INTEGER NOT NULL,
-
-    followups_sent INTEGER NOT NULL DEFAULT 0,
 
     status VARCHAR(50) NOT NULL,
 
@@ -194,7 +201,6 @@ CREATE TABLE campaigns (
 ACTIVE
 PAUSED
 COMPLETED
-FAILED
 ```
 
 ---
@@ -205,19 +211,13 @@ Each followup is stored as an independent row.
 
 ```sql
 CREATE TABLE followups (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY,
 
-    campaign_id BIGINT NOT NULL,
+    campaign_id UUID NOT NULL REFERENCES campaigns(id),
 
     sequence_number INTEGER NOT NULL,
 
     body TEXT NOT NULL,
-
-    scheduled_at TIMESTAMP NOT NULL,
-
-    sent_at TIMESTAMP,
-
-    gmail_message_id VARCHAR(255),
 
     status VARCHAR(50) NOT NULL,
 
@@ -235,19 +235,21 @@ SENT
 FAILED
 ```
 
+> **Note:** The current `followups` schema does not yet carry `scheduled_at`, `sent_at`, or `gmail_message_id`. The scheduler/indexing/locking queries below are written against the columns that exist today. Once `scheduled_at` is added, switch to the composite-index variant in the appendix.
+
 ---
 
 # Indexing Strategy
 
 This is critical for scalability.
 
-Scheduler query:
+Scheduler query (current schema — `created_at` acts as the dispatch ordering until `scheduled_at` is introduced):
 
 ```sql
 SELECT *
 FROM followups
 WHERE status = 'PENDING'
-AND scheduled_at <= NOW()
+ORDER BY created_at
 LIMIT 100;
 ```
 
@@ -259,8 +261,8 @@ Without indexes:
 Create composite index:
 
 ```sql
-CREATE INDEX idx_followups_status_schedule
-ON followups(status, scheduled_at);
+CREATE INDEX idx_followups_status_created
+ON followups(status, created_at);
 ```
 
 Benefits:
@@ -277,8 +279,7 @@ Benefits:
 SELECT *
 FROM followups
 WHERE status = 'PENDING'
-AND scheduled_at <= NOW()
-ORDER BY scheduled_at
+ORDER BY created_at
 LIMIT 100;
 ```
 
@@ -298,7 +299,7 @@ Example:
 SELECT *
 FROM followups
 WHERE status = 'PENDING'
-AND scheduled_at <= NOW()
+ORDER BY created_at
 FOR UPDATE SKIP LOCKED
 LIMIT 100;
 ```
