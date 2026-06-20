@@ -29,12 +29,12 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(EncryptionException.class)
   public ResponseEntity<Map<String, Object>> handleEncryption(EncryptionException ex) {
-    return error(HttpStatus.INTERNAL_SERVER_ERROR, "An internal error occurred");
+    return error(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
   }
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
-    return error(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
+    return error(HttpStatus.INTERNAL_SERVER_ERROR, ex.getClass().getSimpleName() + ": " + ex.getMessage());
   }
 
   private ResponseEntity<Map<String, Object>> error(HttpStatus status, String message) {
