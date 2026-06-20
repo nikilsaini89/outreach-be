@@ -36,6 +36,10 @@ public class CampaignService {
     String refreshToken = userService.getDecryptedRefreshToken(request.userId());
     String accessToken = googleOAuthService.refreshAccessToken(refreshToken).accessToken();
 
+    List<String> followupBodies = followupService.generateBodies(
+        request.subject(), request.initialBody(), request.followupCount()
+    );
+
     GmailSendResponse emailResponse = gmailService.sendEmail(
         accessToken, user.getEmail(), request.recipientEmail(), request.subject(), request.initialBody()
     );
@@ -44,8 +48,8 @@ public class CampaignService {
         CampaignMapper.toEntity(request, user, emailResponse.threadId(), emailResponse.id())
     );
 
-    List<FollowupResponse> followups = followupService.generateAndSave(
-        saved.getId(), request.followupCount(), request.gapDays(), request.preferredHour()
+    List<FollowupResponse> followups = followupService.save(
+        saved, followupBodies, request.gapDays(), request.preferredHour()
     );
 
     return FollowupMapper.toCampaignResponse(saved, followups);

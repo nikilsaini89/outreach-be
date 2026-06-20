@@ -3,12 +3,9 @@ package io.github.nikilsaini.outreach.coldemailer.service;
 import io.github.nikilsaini.outreach.coldemailer.dto.mapper.FollowupMapper;
 import io.github.nikilsaini.outreach.coldemailer.dto.response.FollowupResponse;
 import io.github.nikilsaini.outreach.coldemailer.entity.Campaign;
-import io.github.nikilsaini.outreach.coldemailer.exception.CampaignNotFoundException;
-import io.github.nikilsaini.outreach.coldemailer.repository.CampaignRepository;
 import io.github.nikilsaini.outreach.coldemailer.repository.FollowupRepository;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,17 +15,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class FollowupService {
 
-  private final CampaignRepository campaignRepository;
   private final FollowupRepository followupRepository;
   private final GeminiService geminiService;
 
+  public List<String> generateBodies(String subject, String initialBody, int count) {
+    return geminiService.generateFollowups(subject, initialBody, count);
+  }
+
   @Transactional
-  public List<FollowupResponse> generateAndSave(UUID campaignId, int count, int gapDays, int preferredHour) {
-    Campaign campaign = campaignRepository.findById(campaignId)
-        .orElseThrow(() -> new CampaignNotFoundException(campaignId));
-
-    List<String> bodies = geminiService.generateFollowups(campaign.getSubject(), campaign.getInitialBody(), count);
-
+  public List<FollowupResponse> save(Campaign campaign, List<String> bodies, int gapDays, int preferredHour) {
     AtomicInteger sequence = new AtomicInteger(1);
     return followupRepository.saveAll(
         bodies.stream()
