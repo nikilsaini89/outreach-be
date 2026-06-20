@@ -1,6 +1,7 @@
 package io.github.nikilsaini.outreach.coldemailer.exception;
 
 import io.github.nikilsaini.outreach.auth.oauth.exception.InvalidIdTokenException;
+import io.github.nikilsaini.outreach.coldemailer.exception.CampaignNotFoundException;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -13,6 +14,11 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(UserNotFoundException.class)
   public ResponseEntity<Map<String, Object>> handleUserNotFound(UserNotFoundException ex) {
+    return error(HttpStatus.NOT_FOUND, ex.getMessage());
+  }
+
+  @ExceptionHandler(CampaignNotFoundException.class)
+  public ResponseEntity<Map<String, Object>> handleCampaignNotFound(CampaignNotFoundException ex) {
     return error(HttpStatus.NOT_FOUND, ex.getMessage());
   }
 
