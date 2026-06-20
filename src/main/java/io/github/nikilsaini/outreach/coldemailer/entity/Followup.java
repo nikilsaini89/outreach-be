@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.Data;
 
 @Entity
@@ -29,4 +30,7 @@ public class Followup extends BaseEntity {
 
   @Column(name = "body", nullable = false, columnDefinition = "TEXT")
   private String body;
+
+  @Column(name = "scheduled_at", nullable = false)
+  private LocalDateTime scheduledAt;
 }

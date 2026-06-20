@@ -29,10 +29,10 @@ public class Campaign extends BaseEntity {
   @Column(name = "initial_body", nullable = false, columnDefinition = "TEXT")
   private String initialBody;
 
-  @Column(name = "gmail_thread_id")
+  @Column(name = "gmail_thread_id", nullable = false)
   private String gmailThreadId;
 
-  @Column(name = "root_message_id")
+  @Column(name = "root_message_id", nullable = false)
   private String rootMessageId;
 
   @Enumerated(EnumType.STRING)
