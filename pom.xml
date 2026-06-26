@@ -8,11 +8,11 @@
 		<version>4.1.0</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>io.sumit</groupId>
-	<artifactId>career-os</artifactId>
+	<groupId>io.github.nikilsaini</groupId>
+	<artifactId>cold-emailer</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<name>ColdEmailer</name>
+	<description>Cold emailer with Google OAuth and Gmail integration</description>
 	<url/>
 	<licenses>
 		<license/>
@@ -43,12 +43,6 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.microsoft.playwright</groupId>
-			<artifactId>playwright</artifactId>
-			<version>1.54.0</version>
 		</dependency>
 
 		<dependency>
