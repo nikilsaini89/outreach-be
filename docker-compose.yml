@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: coldemailer-postgres
+    environment:
+      POSTGRES_DB: coldemailer
+      POSTGRES_USER: coldemailer
+      POSTGRES_PASSWORD: coldemailer
+    ports:
+      - "5432:5432"
+    volumes:
+      - coldemailer-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coldemailer -d coldemailer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  coldemailer-pgdata:

@@ -82,6 +82,8 @@ public class FollowupScheduler {
       followup.setStatus(FollowupStatus.SENT);
       log.info("Sent follow-up #{} for campaign {}", followup.getSequenceNumber(), campaign.getId());
     } catch (Exception e) {
+      // Terminal FAILED with no reattempt today; deferred "retry for failed send" behaviour
+      // (backoff + attempt count) tracked as OPEN-DECISION-2 in docs/OPEN_DECISIONS.md.
       followup.setStatus(FollowupStatus.FAILED);
       log.error("Failed to send follow-up #{} for campaign {}: {}", followup.getSequenceNumber(), campaign.getId(), e.getMessage());
     }
