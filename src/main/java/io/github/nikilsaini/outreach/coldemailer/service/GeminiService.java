@@ -10,11 +10,13 @@ import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GeminiService {
@@ -28,8 +30,13 @@ public class GeminiService {
 
   @SneakyThrows
   public List<String> generateFollowups(String subject, String initialBody, int count) {
+    log.atDebug().setMessage("Requesting follow-ups from Gemini")
+        .addKeyValue("model", properties.model())
+        .addKeyValue("count", count)
+        .log();
     GeminiRequest request = buildRequest(subject, initialBody, count);
 
+    // Note: url carries the API key as a query param — never log it.
     String url = GEMINI_BASE_URL + properties.model() + ":generateContent?key=" + properties.apiKey();
 
     GeminiResponse response = googleRestClient.post()
@@ -40,7 +47,9 @@ public class GeminiService {
         .body(GeminiResponse.class);
 
     String json = response.extractText();
-    return Arrays.asList(objectMapper.readValue(json, String[].class));
+    List<String> followups = Arrays.asList(objectMapper.readValue(json, String[].class));
+    log.atDebug().setMessage("Gemini follow-ups received").addKeyValue("count", followups.size()).log();
+    return followups;
   }
 
   private GeminiRequest buildRequest(String subject, String initialBody, int count) {

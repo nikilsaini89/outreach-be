@@ -17,9 +17,11 @@ import io.github.nikilsaini.outreach.auth.oauth.service.GoogleOAuthService;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CampaignService {
@@ -32,6 +34,11 @@ public class CampaignService {
 
   @Transactional
   public CampaignResponse createWithFollowups(CreateCampaignRequest request) {
+    log.atInfo().setMessage("Creating campaign")
+        .addKeyValue("userId", request.userId())
+        .addKeyValue("recipient", request.recipientEmail())
+        .addKeyValue("followups", request.followupCount())
+        .log();
     User user = userService.getById(request.userId());
 
     String refreshToken = userService.getDecryptedRefreshToken(request.userId());
@@ -55,6 +62,11 @@ public class CampaignService {
         saved, followupBodies, request.gapDays(), request.preferredHour()
     );
 
+    log.atInfo().setMessage("Campaign created")
+        .addKeyValue("campaignId", saved.getId())
+        .addKeyValue("threadId", saved.getGmailThreadId())
+        .addKeyValue("followups", followups.size())
+        .log();
     return FollowupMapper.toCampaignResponse(saved, followups);
   }
 
@@ -83,6 +95,7 @@ public class CampaignService {
       throw new IllegalCampaignStateException(campaignId, campaign.getStatus(), "pause");
     }
     campaign.setStatus(CampaignStatus.PAUSED);
+    log.atInfo().setMessage("Campaign paused").addKeyValue("campaignId", campaignId).log();
     return toResponseWithFollowups(campaign);
   }
 
@@ -96,6 +109,7 @@ public class CampaignService {
     // Overdue follow-ups dispatch on the next scheduler tick; deferred "reschedule from
     // today" behaviour tracked as OPEN-DECISION-1 in docs/OPEN_DECISIONS.md.
     campaign.setStatus(CampaignStatus.ACTIVE);
+    log.atInfo().setMessage("Campaign resumed").addKeyValue("campaignId", campaignId).log();
     return toResponseWithFollowups(campaign);
   }
 

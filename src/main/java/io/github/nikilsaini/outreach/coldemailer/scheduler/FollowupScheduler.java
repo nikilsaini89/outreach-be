@@ -31,7 +31,7 @@ public class FollowupScheduler {
     List<Followup> due = followupService.findDue();
     if (due.isEmpty()) return;
 
-    log.info("Found {} due follow-up(s) to send", due.size());
+    log.atInfo().setMessage("Dispatching due follow-ups").addKeyValue("count", due.size()).log();
 
     for (Followup followup : due) {
       followupService.updateStatus(followup, FollowupStatus.PROCESSING);
@@ -54,7 +54,10 @@ public class FollowupScheduler {
     CampaignStatus terminal =
         followupService.hasFailures(campaign.getId()) ? CampaignStatus.FAILED : CampaignStatus.COMPLETED;
     campaign.setStatus(terminal);
-    log.info("Campaign {} reached terminal status {}", campaign.getId(), terminal);
+    log.atInfo().setMessage("Campaign reached terminal status")
+        .addKeyValue("campaignId", campaign.getId())
+        .addKeyValue("status", terminal)
+        .log();
   }
 
   private void sendFollowup(Followup followup) {
@@ -74,12 +77,19 @@ public class FollowupScheduler {
       );
 
       followupService.updateStatus(followup, FollowupStatus.SENT);
-      log.info("Sent follow-up #{} for campaign {}", followup.getSequenceNumber(), campaign.getId());
+      log.atInfo().setMessage("Follow-up sent")
+          .addKeyValue("sequence", followup.getSequenceNumber())
+          .addKeyValue("campaignId", campaign.getId())
+          .log();
     } catch (Exception e) {
       // Terminal FAILED with no reattempt today; deferred "retry for failed send" behaviour
       // (backoff + attempt count) tracked as OPEN-DECISION-2 in docs/OPEN_DECISIONS.md.
       followupService.updateStatus(followup, FollowupStatus.FAILED);
-      log.error("Failed to send follow-up #{} for campaign {}: {}", followup.getSequenceNumber(), campaign.getId(), e.getMessage());
+      log.atError().setMessage("Follow-up send failed")
+          .addKeyValue("sequence", followup.getSequenceNumber())
+          .addKeyValue("campaignId", campaign.getId())
+          .setCause(e)
+          .log();
     }
   }
 }

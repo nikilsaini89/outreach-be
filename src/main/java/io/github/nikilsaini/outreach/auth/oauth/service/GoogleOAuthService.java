@@ -11,11 +11,13 @@ import io.github.nikilsaini.outreach.auth.oauth.util.GoogleOAuthUriBuilder;
 import java.net.URI;
 import java.util.Base64;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GoogleOAuthService {
@@ -29,6 +31,7 @@ public class GoogleOAuthService {
   }
 
   public GoogleTokenResponse exchangeCodeForTokens(String code) {
+    log.atDebug().setMessage("Exchanging Google authorization code").log();
     return fetchTokens(new TokenExchangeRequest(
         code, properties.clientId(), properties.clientSecret(),
         properties.redirectUri(), GoogleOAuthConstants.GRANT_TYPE_AUTH_CODE
@@ -36,6 +39,7 @@ public class GoogleOAuthService {
   }
 
   public GoogleTokenResponse refreshAccessToken(String refreshToken) {
+    log.atDebug().setMessage("Refreshing Google access token").log();
     return fetchTokens(new RefreshTokenRequest(
         refreshToken, properties.clientId(), properties.clientSecret(), GoogleOAuthConstants.GRANT_TYPE_REFRESH_TOKEN
     ).toFormParams());
@@ -59,6 +63,8 @@ public class GoogleOAuthService {
       byte[] payload = Base64.getUrlDecoder().decode(segments[1]);
       return objectMapper.readValue(payload, GoogleIdTokenClaims.class);
     } catch (Exception e) {
+      // Preserve the root cause here; the handler only sees the InvalidIdTokenException message.
+      log.atDebug().setMessage("Failed to parse id_token claims").setCause(e).log();
       throw new InvalidIdTokenException("Failed to parse id_token claims");
     }
   }
