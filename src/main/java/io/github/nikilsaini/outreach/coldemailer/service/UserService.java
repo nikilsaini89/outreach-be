@@ -24,6 +24,17 @@ public class UserService {
         .orElseGet(() -> createUser(request));
   }
 
+  @Transactional(readOnly = true)
+  public User getById(UUID userId) {
+    return userRepository.findById(userId)
+        .orElseThrow(() -> new UserNotFoundException(userId));
+  }
+
+  @Transactional(readOnly = true)
+  public boolean existsById(UUID userId) {
+    return userRepository.existsById(userId);
+  }
+
   public String getDecryptedRefreshToken(UUID userId) {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new UserNotFoundException(userId));
