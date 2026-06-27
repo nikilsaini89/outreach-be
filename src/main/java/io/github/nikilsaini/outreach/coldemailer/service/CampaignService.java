@@ -13,8 +13,6 @@ import io.github.nikilsaini.outreach.coldemailer.exception.CampaignNotFoundExcep
 import io.github.nikilsaini.outreach.coldemailer.exception.IllegalCampaignStateException;
 import io.github.nikilsaini.outreach.coldemailer.exception.UserNotFoundException;
 import io.github.nikilsaini.outreach.coldemailer.repository.CampaignRepository;
-import io.github.nikilsaini.outreach.coldemailer.repository.FollowupRepository;
-import io.github.nikilsaini.outreach.coldemailer.repository.UserRepository;
 import io.github.nikilsaini.outreach.auth.oauth.service.GoogleOAuthService;
 import java.util.List;
 import java.util.UUID;
@@ -27,8 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class CampaignService {
 
   private final CampaignRepository campaignRepository;
-  private final FollowupRepository followupRepository;
-  private final UserRepository userRepository;
   private final UserService userService;
   private final GoogleOAuthService googleOAuthService;
   private final GmailService gmailService;
@@ -36,8 +32,7 @@ public class CampaignService {
 
   @Transactional
   public CampaignResponse createWithFollowups(CreateCampaignRequest request) {
-    User user = userRepository.findById(request.userId())
-        .orElseThrow(() -> new UserNotFoundException(request.userId()));
+    User user = userService.getById(request.userId());
 
     String refreshToken = userService.getDecryptedRefreshToken(request.userId());
     String accessToken = googleOAuthService.refreshAccessToken(refreshToken).accessToken();
@@ -65,7 +60,7 @@ public class CampaignService {
 
   @Transactional(readOnly = true)
   public List<CampaignResponse> listForUser(UUID userId) {
-    if (!userRepository.existsById(userId)) {
+    if (!userService.existsById(userId)) {
       throw new UserNotFoundException(userId);
     }
     return campaignRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
@@ -105,10 +100,7 @@ public class CampaignService {
   }
 
   private CampaignResponse toResponseWithFollowups(Campaign campaign) {
-    List<FollowupResponse> followups =
-        followupRepository.findByCampaignIdOrderBySequenceNumberAsc(campaign.getId()).stream()
-            .map(FollowupMapper::toResponse)
-            .toList();
+    List<FollowupResponse> followups = followupService.getFollowUpsForCampaign(campaign.getId());
     return FollowupMapper.toCampaignResponse(campaign, followups);
   }
 }
