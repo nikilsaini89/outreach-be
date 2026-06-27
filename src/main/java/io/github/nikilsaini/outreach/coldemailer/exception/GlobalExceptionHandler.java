@@ -22,6 +22,11 @@ public class GlobalExceptionHandler {
     return error(HttpStatus.NOT_FOUND, ex.getMessage());
   }
 
+  @ExceptionHandler(IllegalCampaignStateException.class)
+  public ResponseEntity<Map<String, Object>> handleIllegalCampaignState(IllegalCampaignStateException ex) {
+    return error(HttpStatus.CONFLICT, ex.getMessage());
+  }
+
   @ExceptionHandler(InvalidIdTokenException.class)
   public ResponseEntity<Map<String, Object>> handleInvalidIdToken(InvalidIdTokenException ex) {
     return error(HttpStatus.BAD_REQUEST, ex.getMessage());
