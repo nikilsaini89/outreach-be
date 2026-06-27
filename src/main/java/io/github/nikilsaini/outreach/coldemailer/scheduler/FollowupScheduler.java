@@ -3,6 +3,7 @@ package io.github.nikilsaini.outreach.coldemailer.scheduler;
 import io.github.nikilsaini.outreach.auth.oauth.service.GoogleOAuthService;
 import io.github.nikilsaini.outreach.coldemailer.entity.Campaign;
 import io.github.nikilsaini.outreach.coldemailer.entity.Followup;
+import io.github.nikilsaini.outreach.coldemailer.enums.CampaignStatus;
 import io.github.nikilsaini.outreach.coldemailer.enums.FollowupStatus;
 import io.github.nikilsaini.outreach.coldemailer.repository.FollowupRepository;
 import io.github.nikilsaini.outreach.coldemailer.service.EncryptionService;
@@ -28,7 +29,8 @@ public class FollowupScheduler {
   @Scheduled(fixedDelay = 60000)
   @Transactional
   public void sendDueFollowups() {
-    List<Followup> due = followupRepository.findDueFollowups(FollowupStatus.PENDING, LocalDateTime.now());
+    List<Followup> due = followupRepository.findDueFollowups(
+        FollowupStatus.PENDING, LocalDateTime.now(), CampaignStatus.ACTIVE);
     if (due.isEmpty()) return;
 
     log.info("Found {} due follow-up(s) to send", due.size());
@@ -37,7 +39,28 @@ public class FollowupScheduler {
       followup.setStatus(FollowupStatus.PROCESSING);
       followupRepository.save(followup);
       sendFollowup(followup);
+      updateCampaignStatus(followup.getCampaign());
     }
+  }
+
+  /**
+   * Closes out a campaign once none of its follow-ups remain PENDING or PROCESSING. If every
+   * remaining follow-up sent cleanly the campaign is COMPLETED; if any failed it is marked FAILED.
+   */
+  private void updateCampaignStatus(Campaign campaign) {
+    if (campaign.getStatus() != CampaignStatus.ACTIVE) {
+      return;
+    }
+    long outstanding = followupRepository.countByCampaignIdAndStatusIn(
+        campaign.getId(), List.of(FollowupStatus.PENDING, FollowupStatus.PROCESSING));
+    if (outstanding > 0) {
+      return;
+    }
+    long failed = followupRepository.countByCampaignIdAndStatusIn(
+        campaign.getId(), List.of(FollowupStatus.FAILED));
+    CampaignStatus terminal = failed > 0 ? CampaignStatus.FAILED : CampaignStatus.COMPLETED;
+    campaign.setStatus(terminal);
+    log.info("Campaign {} reached terminal status {}", campaign.getId(), terminal);
   }
 
   private void sendFollowup(Followup followup) {
