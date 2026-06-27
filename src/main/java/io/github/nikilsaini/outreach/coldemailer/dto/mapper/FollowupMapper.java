@@ -39,6 +39,7 @@ public class FollowupMapper {
         campaign.getSubject(),
         campaign.getInitialBody(),
         campaign.getStatus(),
+        campaign.getCreatedAt(),
         followups
     );
   }
