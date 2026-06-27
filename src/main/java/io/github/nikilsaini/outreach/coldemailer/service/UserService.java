@@ -7,9 +7,11 @@ import io.github.nikilsaini.outreach.coldemailer.exception.UserNotFoundException
 import io.github.nikilsaini.outreach.coldemailer.repository.UserRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -19,6 +21,7 @@ public class UserService {
 
   @Transactional
   public User upsertFromGoogle(CreateUserRequest request) {
+    log.atInfo().setMessage("Upserting user from Google sign-in").addKeyValue("email", request.email()).log();
     return userRepository.findByEmail(request.email())
         .map(existing -> updateRefreshToken(existing, request.refreshToken()))
         .orElseGet(() -> createUser(request));
@@ -42,6 +45,7 @@ public class UserService {
   }
 
   private User updateRefreshToken(User user, String refreshToken) {
+    log.atDebug().setMessage("Updating user refresh token").addKeyValue("userId", user.getId()).log();
     user.setEncryptedRefreshToken(encryptionService.encrypt(refreshToken));
     return userRepository.save(user);
   }
@@ -49,6 +53,11 @@ public class UserService {
   private User createUser(CreateUserRequest request) {
     User user = UserMapper.toEntity(request);
     user.setEncryptedRefreshToken(encryptionService.encrypt(request.refreshToken()));
-    return userRepository.save(user);
+    User saved = userRepository.save(user);
+    log.atInfo().setMessage("User registered")
+        .addKeyValue("userId", saved.getId())
+        .addKeyValue("email", saved.getEmail())
+        .log();
+    return saved;
   }
 }

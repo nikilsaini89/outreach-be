@@ -12,9 +12,11 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FollowupService {
@@ -23,6 +25,7 @@ public class FollowupService {
   private final GeminiService geminiService;
 
   public List<String> generateBodies(String subject, String initialBody, int count) {
+    log.atDebug().setMessage("Generating follow-up bodies").addKeyValue("count", count).log();
     return geminiService.generateFollowups(subject, initialBody, count);
   }
 
@@ -59,6 +62,10 @@ public class FollowupService {
   }
 
   public void updateStatus(Followup followup, FollowupStatus status) {
+    log.atDebug().setMessage("Follow-up status updated")
+        .addKeyValue("followupId", followup.getId())
+        .addKeyValue("status", status)
+        .log();
     followup.setStatus(status);
     followupRepository.save(followup);
   }
