@@ -33,15 +33,15 @@ public class CampaignService {
   private final FollowupService followupService;
 
   @Transactional
-  public CampaignResponse createWithFollowups(CreateCampaignRequest request) {
+  public CampaignResponse createWithFollowups(UUID userId, CreateCampaignRequest request) {
     log.atInfo().setMessage("Creating campaign")
-        .addKeyValue("userId", request.userId())
+        .addKeyValue("userId", userId)
         .addKeyValue("recipient", request.recipientEmail())
         .addKeyValue("followups", request.followupCount())
         .log();
-    User user = userService.getById(request.userId());
+    User user = userService.getById(userId);
 
-    String refreshToken = userService.getDecryptedRefreshToken(request.userId());
+    String refreshToken = userService.getDecryptedRefreshToken(userId);
     String accessToken = googleOAuthService.refreshAccessToken(refreshToken).accessToken();
 
     List<String> followupBodies = followupService.generateBodies(

@@ -1,5 +1,6 @@
 package io.github.nikilsaini.outreach.auth.oauth.controller;
 
+import io.github.nikilsaini.outreach.auth.jwt.service.JwtService;
 import io.github.nikilsaini.outreach.auth.oauth.dto.response.GoogleIdTokenClaims;
 import io.github.nikilsaini.outreach.auth.oauth.dto.response.GoogleTokenResponse;
 import io.github.nikilsaini.outreach.auth.oauth.service.GoogleOAuthService;
@@ -25,6 +26,7 @@ public class GoogleOAuthController {
 
   private final GoogleOAuthService googleOAuthService;
   private final UserService userService;
+  private final JwtService jwtService;
 
   @Value("${app.frontend-url}")
   private String frontendUrl;
@@ -47,10 +49,13 @@ public class GoogleOAuthController {
     User user = userService.upsertFromGoogle(request);
     log.atInfo().setMessage("Login complete").addKeyValue("userId", user.getId()).log();
 
-    URI location = UriComponentsBuilder.fromUriString(frontendUrl + "/")
-        .queryParam("userId", user.getId())
-        .queryParam("email", user.getEmail())
-        .build().toUri();
+    String authToken = jwtService.generateAuthToken(user.getId(), user.getEmail());
+    String refreshToken = jwtService.generateRefreshToken(user.getId());
+
+      URI location = UriComponentsBuilder.fromUriString(frontendUrl + "/")
+          .queryParam("authToken", authToken)
+          .queryParam("refreshToken", refreshToken)
+          .build().toUri();
     return ResponseEntity.status(302).location(location).build();
   }
 }
