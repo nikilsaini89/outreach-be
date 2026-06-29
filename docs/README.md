@@ -1,27 +1,17 @@
-# Backend Knowledge Base
+# Knowledge Base
 
-Agent guide: read the file that matches your task. You rarely need more than two files.
+Agent guide: navigate to the sub-folder for the repo you are working in, then open the file that matches your task.
 
-| File | Read when you need to… |
-|---|---|
-| [architecture.md](architecture.md) | Understand package layout, layers, or how components wire together |
-| [api.md](api.md) | Look up endpoint paths, request/response shapes, or auth requirements |
-| [data-model.md](data-model.md) | Check entity fields, DB columns, enums, or table relationships |
-| [auth.md](auth.md) | Trace the OAuth→JWT flow or understand how security filters work |
-| [services.md](services.md) | Find the right service method signature or understand business logic |
-| [configuration.md](configuration.md) | Find a property name, its env var override, or its default value |
-| [open-decisions.md](open-decisions.md) | Understand known gaps or deferred behaviour before modifying the scheduler |
+## Repos
 
-## Stack at a glance
+| Folder | Repo | Stack |
+|---|---|---|
+| [backend/](backend/README.md) | `nikilsaini89/outreach-be` | Spring Boot 4.1 · JDK 21 · PostgreSQL · JJWT |
+| `frontend/` | `nikilsaini89/outreach-fe` | React 19 · TypeScript 5.7 · Vite 6 · Tailwind v4 |
 
-- **Spring Boot 4.1.0** / Spring Framework 7 / Spring Security 7
-- **JDK 21** (machine default is 17 — run Maven with `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home`)
-- **PostgreSQL** (local, port 5432, role+db both named `coldemailer`)
-- **JJWT 0.12.6** for JWT generation/validation (HS-HMAC, key from `app.jwt.secret`)
-- **Google OAuth 2.0** — `gmail.send` + `openid email profile` scopes
-- **Gemini AI** (`gemini-2.5-flash`) for follow-up body generation
-- **AES/GCM/NoPadding** for encrypting Google refresh tokens at rest
+## Cross-cutting rules
 
-## Secret logging rule (never violate)
-
-Never log: access tokens, refresh tokens, `app.encryption.secret-key`, id_token payload, Gemini API key (it appears in the URL as a query param — never log the URL), or email bodies.
+- **Never log secrets:** access tokens, refresh tokens, AES encryption key, id_token payload, Gemini API key (appears as URL query param), email bodies.
+- **JDK 21 required:** machine default is JDK 17 — prefix Maven with `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home`.
+- **Local Postgres:** port 5432, role + db both named `coldemailer` (not Docker).
+- **Feature branches:** backend changes go on `feat/react-app`; frontend changes go on `feat/jwt-auth`.
