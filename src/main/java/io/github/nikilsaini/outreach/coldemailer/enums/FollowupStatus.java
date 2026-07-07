@@ -4,5 +4,6 @@ public enum FollowupStatus {
   PENDING,
   PROCESSING,
   SENT,
-  FAILED
+  FAILED,
+  CANCELLED
 }

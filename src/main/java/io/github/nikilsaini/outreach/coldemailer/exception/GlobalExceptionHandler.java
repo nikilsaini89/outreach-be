@@ -7,12 +7,23 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
+    String message = ex.getBindingResult().getFieldErrors().stream()
+        .map(e -> e.getField() + ": " + e.getDefaultMessage())
+        .findFirst()
+        .orElse("Invalid request");
+    log.atWarn().setMessage("Validation failed").addKeyValue("detail", message).log();
+    return error(HttpStatus.BAD_REQUEST, message);
+  }
 
   @ExceptionHandler(UserNotFoundException.class)
   public ResponseEntity<Map<String, Object>> handleUserNotFound(UserNotFoundException ex) {
@@ -36,6 +47,12 @@ public class GlobalExceptionHandler {
   public ResponseEntity<Map<String, Object>> handleInvalidIdToken(InvalidIdTokenException ex) {
     log.atWarn().setMessage("Invalid Google id_token").addKeyValue("detail", ex.getMessage()).log();
     return error(HttpStatus.BAD_REQUEST, ex.getMessage());
+  }
+
+  @ExceptionHandler(InvalidRecipientDomainException.class)
+  public ResponseEntity<Map<String, Object>> handleInvalidRecipientDomain(InvalidRecipientDomainException ex) {
+    log.atWarn().setMessage("Invalid recipient domain").addKeyValue("detail", ex.getMessage()).log();
+    return error(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
   }
 
   @ExceptionHandler(EncryptionException.class)

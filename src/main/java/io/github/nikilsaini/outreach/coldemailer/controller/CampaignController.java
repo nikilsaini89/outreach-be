@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,7 +29,7 @@ public class CampaignController {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public CampaignResponse createCampaign(
-      @RequestBody CreateCampaignRequest request, Authentication authentication) {
+      @Valid @RequestBody CreateCampaignRequest request, Authentication authentication) {
     UUID userId = (UUID) authentication.getPrincipal();
     log.atDebug().setMessage("Request: create campaign").addKeyValue("userId", userId).log();
     return campaignService.createWithFollowups(userId, request);
@@ -57,5 +58,11 @@ public class CampaignController {
   public CampaignResponse resumeCampaign(@PathVariable("id") UUID id) {
     log.atDebug().setMessage("Request: resume campaign").addKeyValue("campaignId", id).log();
     return campaignService.resume(id);
+  }
+
+  @PostMapping("/{id}/cancel")
+  public CampaignResponse cancelFollowups(@PathVariable("id") UUID id) {
+    log.atDebug().setMessage("Request: cancel followups").addKeyValue("campaignId", id).log();
+    return campaignService.cancelFollowups(id);
   }
 }

@@ -87,3 +87,49 @@ distinguishing retryable errors (5xx, rate-limit, timeout) from permanent ones
 - `FollowupRepository.findDueFollowups(...)`: include rows due for retry.
 - Initial-email send path in `CampaignService.createWithFollowups(...)`: decide whether
   the first email retries inline or the failure is surfaced to the user to resend.
+
+---
+
+## OPEN-DECISION-3 — Bounce / NDR detection for non-existent mailboxes
+
+**Status:** Deferred (parked 2026-07-07).
+
+**Context.** When a campaign is created for a recipient whose mailbox does not exist on
+a valid domain (e.g. `x@gmail.com`), the Gmail send API returns HTTP 200 and a valid
+`{threadId, messageId}` — the message is queued and the delivery failure arrives later
+as a bounce/NDR email in the sender's Gmail inbox. We have no way to detect this
+synchronously.
+
+**Current behaviour (shipped).** Domain-level MX validation (`validateRecipientDomain`
+in `CampaignService`) rejects recipients whose domain has no mail servers at all (true
+junk domains). For valid domains with non-existent mailboxes the campaign is created as
+`ACTIVE` with follow-ups scheduled normally. The sender receives the NDR in their Gmail
+inbox outside of the app.
+
+**Why this can't be solved synchronously.** Major mail servers (Gmail, Yahoo, Outlook)
+intentionally disable the SMTP `VRFY` command to prevent address harvesting. The Gmail
+send API does not expose delivery status at send time — this is a fundamental email
+protocol constraint, not a gap in our code.
+
+**Deferred option — async NDR polling.** After the initial email is sent, a background
+job periodically queries the user's Gmail inbox (Gmail API `messages.list` with a filter
+for bounce/NDR senders such as `mailer-daemon@*` or `postmaster@*`) and checks whether
+any bounce message references the campaign's `threadId` or `messageId`. If a match is
+found, mark the campaign `FAILED` and its pending follow-ups `CANCELLED`.
+
+**Why deferred.** Requires:
+- A scheduled job that authenticates as the sender (needs stored refresh token — already
+  available) and searches their inbox.
+- NDR parsing: bounce email format is not standardised across mail servers — needs
+  heuristic matching on subject, sender, and `In-Reply-To` / `References` headers.
+- A time window decision: how long to poll before giving up (bounces typically arrive
+  within minutes for NXDOMAIN, hours for other failures).
+- A campaign state transition path from `ACTIVE` → `FAILED` triggered outside the
+  normal scheduler flow.
+
+**Touch points when we pick this up:**
+- New scheduled job (e.g. `BounceDetectionJob`) running every few minutes.
+- `CampaignService`: add a `markFailedDueToBounce(UUID campaignId)` method that cancels
+  pending follow-ups and sets status to `FAILED`.
+- Frontend campaign detail: differentiate "failed on send" vs "bounced after send" if
+  useful to the user.

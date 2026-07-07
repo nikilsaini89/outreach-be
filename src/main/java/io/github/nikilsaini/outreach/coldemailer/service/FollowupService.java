@@ -80,4 +80,15 @@ public class FollowupService {
     return followupRepository.countByCampaignIdAndStatusIn(
         campaignId, List.of(FollowupStatus.FAILED)) > 0;
   }
+
+  @Transactional
+  public void cancelPending(UUID campaignId) {
+    List<Followup> pending = followupRepository.findByCampaignIdAndStatus(campaignId, FollowupStatus.PENDING);
+    pending.forEach(f -> f.setStatus(FollowupStatus.CANCELLED));
+    followupRepository.saveAll(pending);
+    log.atInfo().setMessage("Pending follow-ups cancelled")
+        .addKeyValue("campaignId", campaignId)
+        .addKeyValue("count", pending.size())
+        .log();
+  }
 }

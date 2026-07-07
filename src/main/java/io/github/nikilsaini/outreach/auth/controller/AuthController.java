@@ -5,6 +5,7 @@ import io.github.nikilsaini.outreach.auth.jwt.dto.TokenResponse;
 import io.github.nikilsaini.outreach.auth.jwt.service.JwtService;
 import io.github.nikilsaini.outreach.coldemailer.entity.User;
 import io.github.nikilsaini.outreach.coldemailer.service.UserService;
+import jakarta.validation.Valid;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import java.util.UUID;
@@ -26,7 +27,7 @@ public class AuthController {
   private final UserService userService;
 
   @PostMapping("/refresh")
-  public ResponseEntity<TokenResponse> refresh(@RequestBody RefreshRequest request) {
+  public ResponseEntity<TokenResponse> refresh(@Valid @RequestBody RefreshRequest request) {
     try {
       Claims claims = jwtService.parseClaims(request.refreshToken());
       if (!jwtService.isRefreshToken(claims)) {
@@ -34,7 +35,8 @@ public class AuthController {
       }
       UUID userId = UUID.fromString(claims.getSubject());
       User user = userService.getById(userId);
-      String newAuthToken = jwtService.generateAuthToken(userId, user.getEmail());
+      String name = (user.getFirstName() + " " + user.getLastName()).trim();
+      String newAuthToken = jwtService.generateAuthToken(userId, user.getEmail(), name);
       log.atDebug().setMessage("Auth token refreshed").addKeyValue("userId", userId).log();
       return ResponseEntity.ok(new TokenResponse(newAuthToken));
     } catch (JwtException e) {

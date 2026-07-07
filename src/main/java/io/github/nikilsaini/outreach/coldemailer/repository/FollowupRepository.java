@@ -21,5 +21,7 @@ public interface FollowupRepository extends JpaRepository<Followup, UUID> {
 
   List<Followup> findByCampaignIdOrderBySequenceNumberAsc(UUID campaignId);
 
+  List<Followup> findByCampaignIdAndStatus(UUID campaignId, FollowupStatus status);
+
   long countByCampaignIdAndStatusIn(UUID campaignId, List<FollowupStatus> statuses);
 }
