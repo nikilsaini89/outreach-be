@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg %kvp%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="KAFKA" class="com.github.danielwegener.logback.kafka.KafkaAppender">
+    <!-- Emit structured JSON — LogstashEncoder adds level, logger, thread, stack_trace, etc. -->
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+    <topic>app-logs</topic>
+    <keyingStrategy class="com.github.danielwegener.logback.kafka.keying.NoKeyKeyingStrategy"/>
+    <deliveryStrategy class="com.github.danielwegener.logback.kafka.delivery.AsynchronousDeliveryStrategy"/>
+
+    <producerConfig>bootstrap.servers=${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}</producerConfig>
+    <!-- Fire-and-forget for logs: don't let Kafka slowness block the app -->
+    <producerConfig>acks=0</producerConfig>
+    <producerConfig>retries=0</producerConfig>
+    <producerConfig>max.block.ms=1000</producerConfig>
+    <producerConfig>linger.ms=100</producerConfig>
+
+    <!-- If Kafka is down, fall back to console so logs aren't lost -->
+    <appender-ref ref="CONSOLE"/>
+  </appender>
+
+  <!-- Kafka client logs must go to CONSOLE only — routing them to KafkaAppender
+       causes infinite recursion during producer initialization -->
+  <logger name="org.apache.kafka" level="WARN" additivity="false">
+    <appender-ref ref="CONSOLE"/>
+  </logger>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="KAFKA"/>
+  </root>
+
+  <springProfile name="local">
+    <logger name="io.github.nikilsaini" level="DEBUG"/>
+  </springProfile>
+
+</configuration>
