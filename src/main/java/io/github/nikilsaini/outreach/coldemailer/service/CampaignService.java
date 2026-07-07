@@ -11,7 +11,13 @@ import io.github.nikilsaini.outreach.coldemailer.entity.User;
 import io.github.nikilsaini.outreach.coldemailer.enums.CampaignStatus;
 import io.github.nikilsaini.outreach.coldemailer.exception.CampaignNotFoundException;
 import io.github.nikilsaini.outreach.coldemailer.exception.IllegalCampaignStateException;
+import io.github.nikilsaini.outreach.coldemailer.exception.InvalidRecipientDomainException;
 import io.github.nikilsaini.outreach.coldemailer.exception.UserNotFoundException;
+import java.util.Hashtable;
+import javax.naming.CommunicationException;
+import javax.naming.NamingException;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.InitialDirContext;
 import io.github.nikilsaini.outreach.coldemailer.repository.CampaignRepository;
 import io.github.nikilsaini.outreach.auth.oauth.service.GoogleOAuthService;
 import java.util.List;
@@ -44,14 +50,25 @@ public class CampaignService {
     String refreshToken = userService.getDecryptedRefreshToken(userId);
     String accessToken = googleOAuthService.refreshAccessToken(refreshToken).accessToken();
 
+    validateRecipientDomain(request.recipientEmail());
+
+    GmailSendResponse emailResponse;
+    try {
+      emailResponse = gmailService.sendEmail(
+          accessToken, user.getEmail(), request.recipientEmail(), request.subject(), request.initialBody()
+      );
+    } catch (Exception e) {
+      log.atWarn().setMessage("Initial email delivery failed — saving campaign as FAILED")
+          .addKeyValue("recipient", request.recipientEmail())
+          .setCause(e).log();
+      Campaign failed = CampaignMapper.toEntity(request, user, "", "");
+      failed.setStatus(CampaignStatus.FAILED);
+      Campaign saved = campaignRepository.save(failed);
+      return FollowupMapper.toCampaignResponse(saved, List.of());
+    }
+
     List<String> followupBodies = followupService.generateBodies(
         request.subject(), request.initialBody(), request.followupCount()
-    );
-
-    // A failure here aborts campaign creation with no retry; deferred "retry for failed
-    // send" behaviour tracked as OPEN-DECISION-2 in docs/OPEN_DECISIONS.md.
-    GmailSendResponse emailResponse = gmailService.sendEmail(
-        accessToken, user.getEmail(), request.recipientEmail(), request.subject(), request.initialBody()
     );
 
     Campaign saved = campaignRepository.save(
@@ -113,8 +130,49 @@ public class CampaignService {
     return toResponseWithFollowups(campaign);
   }
 
+  @Transactional
+  public CampaignResponse cancelFollowups(UUID campaignId) {
+    Campaign campaign = campaignRepository.findById(campaignId)
+        .orElseThrow(() -> new CampaignNotFoundException(campaignId));
+    if (campaign.getStatus() != CampaignStatus.ACTIVE && campaign.getStatus() != CampaignStatus.PAUSED) {
+      throw new IllegalCampaignStateException(campaignId, campaign.getStatus(), "cancel");
+    }
+    followupService.cancelPending(campaignId);
+    campaign.setStatus(CampaignStatus.CANCELLED);
+    campaignRepository.save(campaign);
+    log.atInfo().setMessage("Campaign cancelled").addKeyValue("campaignId", campaignId).log();
+    return toResponseWithFollowups(campaign);
+  }
+
   private CampaignResponse toResponseWithFollowups(Campaign campaign) {
     List<FollowupResponse> followups = followupService.getFollowUpsForCampaign(campaign.getId());
     return FollowupMapper.toCampaignResponse(campaign, followups);
+  }
+
+  private void validateRecipientDomain(String email) {
+    String domain = email.substring(email.indexOf('@') + 1);
+    try {
+      Hashtable<String, String> env = new Hashtable<>();
+      env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
+      InitialDirContext ctx = new InitialDirContext(env);
+      Attributes attrs = ctx.getAttributes(domain, new String[]{"MX"});
+      if (attrs.get("MX") == null) {
+        log.atWarn().setMessage("MX validation failed — no MX records").addKeyValue("domain", domain).log();
+        throw new InvalidRecipientDomainException(domain);
+      }
+      log.atDebug().setMessage("MX validation passed").addKeyValue("domain", domain).log();
+    } catch (InvalidRecipientDomainException e) {
+      throw e;
+    } catch (CommunicationException e) {
+      // DNS server unreachable / timeout — fail open so transient network issues don't block valid sends
+      log.atWarn().setMessage("MX lookup network error, proceeding with send").addKeyValue("domain", domain).log();
+    } catch (NamingException e) {
+      // Domain not found or any other DNS error — reject
+      log.atWarn().setMessage("MX validation failed")
+          .addKeyValue("domain", domain)
+          .addKeyValue("reason", e.getClass().getSimpleName())
+          .log();
+      throw new InvalidRecipientDomainException(domain);
+    }
   }
 }
