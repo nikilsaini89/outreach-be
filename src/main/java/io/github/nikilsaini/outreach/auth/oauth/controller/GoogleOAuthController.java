@@ -49,7 +49,8 @@ public class GoogleOAuthController {
     User user = userService.upsertFromGoogle(request);
     log.atInfo().setMessage("Login complete").addKeyValue("userId", user.getId()).log();
 
-    String authToken = jwtService.generateAuthToken(user.getId(), user.getEmail());
+    String name = (user.getFirstName() + " " + user.getLastName()).trim();
+    String authToken = jwtService.generateAuthToken(user.getId(), user.getEmail(), name);
     String refreshToken = jwtService.generateRefreshToken(user.getId());
 
       URI location = UriComponentsBuilder.fromUriString(frontendUrl + "/")

@@ -21,10 +21,11 @@ public class JwtService {
     return Keys.hmacShaKeyFor(jwtProperties.secret().getBytes(StandardCharsets.UTF_8));
   }
 
-  public String generateAuthToken(UUID userId, String email) {
+  public String generateAuthToken(UUID userId, String email, String name) {
     return Jwts.builder()
         .subject(userId.toString())
         .claim("email", email)
+        .claim("name", name)
         .claim("type", "auth")
         .issuedAt(new Date())
         .expiration(new Date(System.currentTimeMillis() + jwtProperties.authExpiryMs()))
