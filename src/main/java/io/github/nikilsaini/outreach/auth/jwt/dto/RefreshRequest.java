@@ -1,3 +1,5 @@
 package io.github.nikilsaini.outreach.auth.jwt.dto;
 
-public record RefreshRequest(String refreshToken) {}
+import jakarta.validation.constraints.NotBlank;
+
+public record RefreshRequest(@NotBlank String refreshToken) {}
