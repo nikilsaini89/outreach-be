@@ -22,6 +22,16 @@ public class FollowupMapper {
     return followup;
   }
 
+  public static Followup toStubEntity(Campaign campaign, int sequenceNumber, LocalDateTime scheduledAt) {
+    Followup followup = new Followup();
+    followup.setCampaign(campaign);
+    followup.setBody("");
+    followup.setSequenceNumber(sequenceNumber);
+    followup.setStatus(FollowupStatus.GENERATING);
+    followup.setScheduledAt(scheduledAt);
+    return followup;
+  }
+
   public static FollowupResponse toResponse(Followup followup) {
     return new FollowupResponse(
         followup.getId(),
