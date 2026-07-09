@@ -14,7 +14,7 @@ import org.springframework.transaction.event.TransactionPhase;
 @RequiredArgsConstructor
 public class FollowupGenerationPublisher {
 
-  private final KafkaTemplate<String, FollowupGenerationPayload> kafkaTemplate;
+  private final KafkaTemplate<String, Object> kafkaTemplate;
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void onFollowupGenerationRequested(FollowupGenerationPayload payload) {
