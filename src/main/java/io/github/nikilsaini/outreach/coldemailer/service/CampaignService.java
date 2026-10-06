@@ -1,5 +1,6 @@
 package io.github.nikilsaini.outreach.coldemailer.service;
 
+import io.github.nikilsaini.outreach.coldemailer.dto.event.FollowupGenerationPayload;
 import io.github.nikilsaini.outreach.coldemailer.dto.mapper.CampaignMapper;
 import io.github.nikilsaini.outreach.coldemailer.dto.mapper.FollowupMapper;
 import io.github.nikilsaini.outreach.coldemailer.dto.request.CreateCampaignRequest;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,7 @@ public class CampaignService {
   private final GoogleOAuthService googleOAuthService;
   private final GmailService gmailService;
   private final FollowupService followupService;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public CampaignResponse createWithFollowups(UUID userId, CreateCampaignRequest request) {
@@ -67,24 +70,34 @@ public class CampaignService {
       return FollowupMapper.toCampaignResponse(saved, List.of());
     }
 
-    List<String> followupBodies = followupService.generateBodies(
-        request.subject(), request.initialBody(), request.followupCount()
-    );
-
+    // Save campaign first so follow-up stubs can reference its ID.
     Campaign saved = campaignRepository.save(
         CampaignMapper.toEntity(request, user, emailResponse.threadId(), emailResponse.id())
     );
 
-    List<FollowupResponse> followups = followupService.save(
-        saved, followupBodies, request.gapDays(), request.preferredHour()
+    // Persist GENERATING stubs — these are returned immediately to the caller so the UI can
+    // show the timeline with a "generating" placeholder while Kafka handles Gemini in the background.
+    List<FollowupResponse> stubs = followupService.saveStubs(
+        saved, request.followupCount(), request.gapDays(), request.preferredHour()
     );
 
-    log.atInfo().setMessage("Campaign created")
+    // Publish the generation event AFTER commit via @TransactionalEventListener so we never
+    // publish to Kafka for a transaction that rolled back.
+    eventPublisher.publishEvent(new FollowupGenerationPayload(
+        saved.getId(),
+        request.subject(),
+        request.initialBody(),
+        request.followupCount(),
+        request.gapDays(),
+        request.preferredHour()
+    ));
+
+    log.atInfo().setMessage("Campaign created — followup generation dispatched")
         .addKeyValue("campaignId", saved.getId())
         .addKeyValue("threadId", saved.getGmailThreadId())
-        .addKeyValue("followups", followups.size())
+        .addKeyValue("stubs", stubs.size())
         .log();
-    return FollowupMapper.toCampaignResponse(saved, followups);
+    return FollowupMapper.toCampaignResponse(saved, stubs);
   }
 
   @Transactional(readOnly = true)

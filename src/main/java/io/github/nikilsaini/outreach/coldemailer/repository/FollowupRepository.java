@@ -24,4 +24,9 @@ public interface FollowupRepository extends JpaRepository<Followup, UUID> {
   List<Followup> findByCampaignIdAndStatus(UUID campaignId, FollowupStatus status);
 
   long countByCampaignIdAndStatusIn(UUID campaignId, List<FollowupStatus> statuses);
+
+  @Query("SELECT f FROM Followup f JOIN FETCH f.campaign WHERE f.status = :status AND f.createdAt < :cutoff")
+  List<Followup> findStaleGenerating(
+      @Param("status") FollowupStatus status,
+      @Param("cutoff") LocalDateTime cutoff);
 }
